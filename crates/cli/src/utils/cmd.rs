@@ -11,7 +11,11 @@ use foundry_compilers::{
     utils::read_json_file,
     Artifact, ArtifactId, ProjectCompileOutput,
 };
-use foundry_config::{error::ExtractConfigError, figment::Figment, Chain, Config, NamedChain};
+use foundry_config::{error::ExtractConfigError, figment::Figment, Config, Chain as ChainV1, NamedChain as NamedChainV1};
+use alloy_chains_02::{
+    Chain as ChainV2,
+    NamedChain as NamedChainV2,
+};
 use foundry_debugger::Debugger;
 use foundry_evm::{
     executors::{DeployResult, EvmError, RawCallResult},
@@ -161,25 +165,27 @@ pub fn init_progress(len: u64, label: &str) -> indicatif::ProgressBar {
 
 /// True if the network calculates gas costs differently.
 pub fn has_different_gas_calc(chain_id: u64) -> bool {
-    if let Some(chain) = Chain::from(chain_id).named() {
-        return chain.is_arbitrum() ||
-            matches!(
+    // use the *0.2* type so we can call the new helper
+    if let Some(chain) = ChainV2::from(chain_id).named() {
+        return chain.is_arbitrum()
+            || chain.is_elastic()
+            || matches!(
                 chain,
-                NamedChain::Acala |
-                    NamedChain::AcalaMandalaTestnet |
-                    NamedChain::AcalaTestnet |
-                    NamedChain::Etherlink |
-                    NamedChain::EtherlinkTestnet |
-                    NamedChain::Karura |
-                    NamedChain::KaruraTestnet |
-                    NamedChain::Mantle |
-                    NamedChain::MantleSepolia |
-                    NamedChain::MantleTestnet |
-                    NamedChain::Moonbase |
-                    NamedChain::Moonbeam |
-                    NamedChain::MoonbeamDev |
-                    NamedChain::Moonriver |
-                    NamedChain::Metis
+                NamedChainV2::Acala
+                    | NamedChainV2::AcalaMandalaTestnet
+                    | NamedChainV2::AcalaTestnet
+                    | NamedChainV2::Etherlink
+                    | NamedChainV2::EtherlinkTestnet
+                    | NamedChainV2::Karura
+                    | NamedChainV2::KaruraTestnet
+                    | NamedChainV2::Mantle
+                    | NamedChainV2::MantleSepolia
+                    | NamedChainV2::MantleTestnet
+                    | NamedChainV2::Moonbase
+                    | NamedChainV2::Moonbeam
+                    | NamedChainV2::MoonbeamDev
+                    | NamedChainV2::Moonriver
+                    | NamedChainV2::Metis
             );
     }
     false
@@ -187,7 +193,7 @@ pub fn has_different_gas_calc(chain_id: u64) -> bool {
 
 /// True if it supports broadcasting in batches.
 pub fn has_batch_support(chain_id: u64) -> bool {
-    if let Some(chain) = Chain::from(chain_id).named() {
+    if let Some(chain) = ChainV1::from(chain_id).named() {
         return !chain.is_arbitrum();
     }
     true
@@ -332,7 +338,7 @@ impl TryFrom<Result<RawCallResult>> for TraceResult {
 pub async fn handle_traces(
     mut result: TraceResult,
     config: &Config,
-    chain: Option<Chain>,
+    chain: Option<ChainV1>,
     labels: Vec<String>,
     with_local_artifacts: bool,
     debug: bool,
